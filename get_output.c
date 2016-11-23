@@ -12,13 +12,13 @@ int main(int argc, char *argv[])
     FILE *fp,*fw;
     switch (f) {
 	case PT_MALLOC:
-	    fw = fopen("output_ptm","w+");
+	    fw = fopen("output_ptmalloc","w+");
 	    break;
 	case SUPER_MALLOC:
-	    fw = fopen("output_super","w+");
+	    fw = fopen("output_supermalloc","w+");
 	    break;
 	case ALLOCATOR:
-	    fw = fopen("output_alloc","w+");
+	    fw = fopen("output_allocator","w+");
 	    break;
     }
     int threads[7] = {1,2,4,8,16,32,64};
