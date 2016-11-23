@@ -6,32 +6,23 @@
 #include <cmath>
 #include "rdtscp_timer/timing.hh"
 
-#define FRAG 1
-#define N_ALLOCS 20
+#define MAX_POW_SIZE 22
 int THREAD_NUM;
 
 using namespace std;
-int power_size;
-double times[64][N_ALLOCS];
+double times[64][MAX_POW_SIZE];
 double clock_speed_ghz;
-size_t SIZE;
-
-static double count_sum (int id) 
-{
-    double sum = 0.0;
-    for (int i = 0; i < N_ALLOCS; i++)
-	sum += times[id][i];
-    return sum;
-}
 
 static void *do_malloc (void *arg) 
 {
     vector<char*> ptrs;
     int id = *((int*)arg);
     Timer t(clock_speed_ghz);
-    for (int i = 0; i < N_ALLOCS; i++) {
+    size_t SIZE;
+    for (int i = 2; i <= MAX_POW_SIZE; i++) {
 	void *vptr = NULL;
 	char *a = NULL;
+	SIZE = pow(2,i);
 
 	t.tick();
 	vptr = malloc(SIZE);
@@ -44,7 +35,7 @@ static void *do_malloc (void *arg)
 	    __builtin___clear_cache((void *) vptr, (void *) vptr + (SIZE));
 	#endif
 			
-	times[id][i] = t.get_time();
+	times[id][i-1] = t.get_time();
 	ptrs.push_back(a);
     }
 }
@@ -55,13 +46,9 @@ static void testAllocation()
     FILE *fp;
     int id[THREAD_NUM];
     pthread_t threads[THREAD_NUM];
-    /* Different thread_num different file */
-    char s[10];
-    sprintf(s, "output_%d", THREAD_NUM);
-    fp = fopen(s,"a+");
+    fp = fopen("bench_output","a+");
 
     /* Separate size to each thread */
-    SIZE = pow(2,power_size);
     for (int i = 0; i < THREAD_NUM; i++){
 	id[i] = i;
 	pthread_create(&threads[i], NULL, do_malloc, (void*)&id[i]); 
@@ -69,11 +56,13 @@ static void testAllocation()
     for (int i = 0; i < THREAD_NUM; i++)
 	pthread_join(threads[i], NULL);
 
+    /* Compute total time executed */
     double sum = 0.0;
     for (int i = 0; i < THREAD_NUM; i++)
-	sum += count_sum(i);
+	for (int j = 1; j < MAX_POW_SIZE; j++)
+	    sum += times[i][j];
 
-    fprintf(fp, "%zubytes %.10lf\n", SIZE, sum);
+    fprintf(fp, "%d %.10lf\n", THREAD_NUM, sum);
     fclose(fp);
 }
 
@@ -81,7 +70,6 @@ int main(int argc, char **argv)
 {
     clock_speed_ghz = 1.6;
     THREAD_NUM = atoi(argv[1]);
-    power_size = atoi(argv[2]);
     testAllocation();
     return 0;
 }
